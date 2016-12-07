@@ -28,7 +28,7 @@ int get_lowest_bound_start(vector<vector<double>> total_map, vector<int> critica
 	//expand next critical node and do the same
 	for (int i = 0; i < critical_nodes.size(); i++)
 	{
-		vector<doubles> paths;
+		vector<double> paths;
 		for (int j = 0; j < critical_nodes.size(); j++)
 		{
 			//if possible path and not leading to itself
@@ -48,9 +48,22 @@ int get_lowest_bound_start(vector<vector<double>> total_map, vector<int> critica
 //Find lowest bound given that you came from certain nodes
 double get_lowest_bound(vector<vector<double>> total_map, vector<int> critical_nodes, vector<int> path)
 {
-	//calculate lowest bound up until the end of the path
+	/*calculate lowest bound up until the end of the path
+		get dist from path[i] to path[i+1]
+		find the next lowest path from path[i] to any other node besides the one above
+		add the two to the lowest_bound total
+	*/
 
 	//calculate lowest bound for all points that are not in the path
+
+	/* idea
+		take path[i] and set all its col in total_map to INFINITY
+		call get_lowest_bound_start to get rest of lowest bound
+	*/
+	/*
+		idea number 2
+		do the same thing except call the functions separately and keep the path lowest_bound in main and add on the rest of the lowest bound
+	*/
 }
 
 //returns vector of critical nodes visitable by current node
@@ -62,7 +75,7 @@ vector<int> get_children(vector<vector<double>> total_map, vector<int> critical_
 		//note nodes are one indexed
 		//If the node in the map is visitable and not the current node
 		//add to children
-		if (total_map[current_node - 1][critical_nodes[i] - 1] != INFINITY && total_map[current_node - 1][critical_nodes[i] - 1] != 0)
+		if (total_map[current_node - 1][critical_nodes[i] - 1] != INFINITY && current_node != critical_nodes[i])
 			children.push_back(i);
 	}
 	
@@ -147,12 +160,11 @@ int main()
 			int lowest = get_lowest_bound_start(total_map, critical_nodes);
 
 			//Get children first node
+			//for each child
+				//calculate lowest bound assuming you went to this child
+				//keep track of which child has lowest bound
 
-			//calculate lowest bound assuming you went to this child
-
-			//Keep track of which child has lowest bound and expand that one into the path
-			
-
+			//assign lowest bound child to new current node
 		}
 		else
 		{
