@@ -5,12 +5,10 @@
 
 using namespace std;
 
-/* Input
+/* Input order
 #nodes, #edges
-all edges
+from, to, distance
 critical node where first is starting ending point
-
-
 */
 
 struct visiting
@@ -20,42 +18,53 @@ struct visiting
 };
 
 
-//Find lowest bound of whole problem
+/*
+INPUT:
+-total_map = Matrix that Floyd's was ran on
+-critical_nodes = list of nodes that must be vistied and have already been visited
+
+OUTPUT:
+-A partial lower bound from the given problem
+*/
 double get_lowest_bound_start(vector<vector<double>> total_map, vector<visiting> critical_nodes)
 {
 	double lowest_bound = 0;
-	//get two minimal paths from the current node and add to lowest bound
-	//expand next critical node and do the same
+	
+	//Find the two shortest paths leaving each critical node that has not been pathed
 	for (int i = 0; i < critical_nodes.size(); i++)
 	{
+		//Ignore pathed critical nodes
 		if (critical_nodes[i].pathed == true)
 			continue;
 
 		vector<double> paths;
 		for (int j = 0; j < critical_nodes.size(); j++)
 		{
-			//if possible path and not leading to itself
+			//If possible to get to the critical node && the node is not going to itself
 			if (total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1] != DBL_MAX && j != i)
 				paths.push_back(total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1]);
 		}
 
-		sort(paths.begin(), paths.begin() + paths.size()); //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ maybe size() - 1
+		sort(paths.begin(), paths.begin() + paths.size());
 		lowest_bound += paths[0] + paths[1];
 	}
 
-	//ceiling of lowest bound divided by two
-	
 	return lowest_bound;
 }
 
-//Find lowest bound given that you came from certain nodes
+/*
+INPUT:
+-total_map = Matrix that Floyd's was ran on
+-critical_nodes = list of nodes that must be vistied and have already been visited
+-path = the order that the nodes have been traversed
+
+OUTPUT:
+-An exact lower bound for the entire problem given that you have followed the path
+*/
 int get_lowest_bound(vector<vector<double>> total_map, vector<visiting> critical_nodes, vector<int> path)
 {
-	/*calculate lowest bound up until the end of the path
-		get dist from path[i] to path[i+1]
-		find the next lowest path from path[i] to any other node besides the one above
-		add the two to the lowest_bound total
-	*/
+
+	//Calculate the lowest bound of the path
 	double lowest_bound = 0;
 	for (int i = 0; i < path.size() - 1; i++)
 	{
@@ -71,28 +80,18 @@ int get_lowest_bound(vector<vector<double>> total_map, vector<visiting> critical
 		lowest_bound += min;
 	}
 
-	//calculate lowest bound for all points that are not in the path
-
-	/* idea
-		take path[i] and set all its col in total_map to DBL_MAX
-		call get_lowest_bound_start to get rest of lowest bound
-	*/
-
+	//get lowest bound of points not in the map
 	double rest_of_bound = get_lowest_bound_start(total_map, critical_nodes);
 	
-
 	return int((lowest_bound + rest_of_bound) / 2);
 }
 
-//returns vector of critical nodes visitable by current node
+//OUTPUT: Finds all children of the current node that are critical nodes
 vector<int> get_children(vector<vector<double>> total_map, vector<visiting> critical_nodes, int current_node)
 {
 	vector<int> children;
 	for (int i = 0; i < critical_nodes.size(); i++)
 	{
-		//note nodes are one indexed
-		//If the node in the map is visitable and not the current node
-		//add to children
 		if (total_map[current_node - 1][critical_nodes[i].node - 1] != DBL_MAX && current_node != critical_nodes[i].node && critical_nodes[i].pathed == false)
 			children.push_back(critical_nodes[i].node);
 	}
@@ -107,7 +106,11 @@ int main()
 
 	vector<vector<double>> total_map;
 
-	//Generating the base map (no path values included)
+	/* 
+	Creates the nxn matrix
+	-main diagonal initialized to 0
+	-all other spots initialized to DBl_MAX
+	*/
 	for (int i = 0; i < num_nodes; i++)
 	{
 		vector <double> temp;
@@ -121,18 +124,22 @@ int main()
 		total_map.push_back(temp);
 	}
 
-	//Addint distanced to map
+	/*
+	Create the maxtrix map with distances included
+	-Note: The vector is zero indexed and the nodes are 1 indexed
+	-Graph is non-directed so we add the distance for both direction into matrix
+	*/
 	for (int i = 0; i < num_edges; i++)
 	{
 		double start, end, dist;
 		cin >> start >> end >> dist;
 
-		//nodes are 1 indexed and vectors are 0 indexed
+		//Add distances
 		total_map[start - 1][end - 1] = dist;
 		total_map[end - 1][start - 1] = dist;
 	}
 
-	//Run Floyds
+	//Run Floyd's Algorithm to find the shortest path between all critical nodes
 	for (int k = 0; k < num_nodes; k++)
 	{
 		for (int i = 0; i < num_nodes; i++)
@@ -144,10 +151,13 @@ int main()
 		}
 	}
 	
-	//Get critical nodes
+	/*
+	Critical_nodes is a vector of nodes that we must go to
+	-We make it type 'visiting' so that we can keep track if we have gone there yet
+	*/
 	vector<visiting> critical_nodes;
-	vector<int> path;
-
+	
+	//INPUT: Get all critical nodes
 	for (int i = 0; i < num_nodes; i++)
 	{
 		visiting node;
@@ -156,33 +166,26 @@ int main()
 		critical_nodes.push_back(node);
 	}
 
-	//Branch and Bound for TSP
-	/*
-	while path hasn't been found
-		if first round
-			calculate lower bound
-			get all children
-				calculate their lower bound
-				expand lowest bound
-		if != first round
-			should have lower bound from last round
-			get all children
-				calulate their lower bound
-				expand lowest bound
-	*/
+	//Run approximate Branch and Bound for Travelling Salesman
 	bool first_round = true;
+
+	/*
+	Path is a list of the nodes we have visited and what order we have visited them
+	-We add the first critical node because that is our starting/ending location
+	*/
+	vector<int> path = {critical_nodes[0].node};
 	while (true)
 	{
 		if (first_round == true)
 		{
 			first_round = false;
-			
-			path.push_back(critical_nodes[0].node);
 
-			//calculate lowest bound ??????????????????????????
+			//Calculate the lowest bound of entire problem
 			double low = get_lowest_bound_start(total_map, critical_nodes);
 			low /= 2;
 			int lowest = int(low + 0.5);
+
+			//Must be done after the lowest bound function is called or it would ignore the first node
 			critical_nodes[0].pathed = true;
 
 			//Get children first node
@@ -190,9 +193,8 @@ int main()
 
 			int lowest_child_bound = numeric_limits<int>::max();
 			int lowest_child;
-			//for each child
-				//calculate lowest bound assuming you went to this child
-				//keep track of which child has lowest bound
+			
+			//Find the child with the lowest bound
 			for (int i = 0; i < children.size(); i++)
 			{
 				path.push_back(children[i]);
@@ -205,6 +207,9 @@ int main()
 				path.pop_back();
 			}
 
+			//Add the lowest bound child to the path and set it as traversed
+			path.push_back(lowest_child);
+
 			for (int i = 0; i < critical_nodes.size(); i++)
 			{
 				if (lowest_child == critical_nodes[i].node)
@@ -213,13 +218,11 @@ int main()
 					break;
 				}
 			}
-			//assign lowest bound child to new current node
-			path.push_back(lowest_child);
 		}
 		else
 		{
 
-			//Get children first node
+			//Get the children of the last traversed node
 			vector<int> children = get_children(total_map, critical_nodes, path[path.size() - 1]);
 
 			//End Condition
@@ -231,9 +234,8 @@ int main()
 
 			int lowest_child_bound = numeric_limits<int>::max();
 			int lowest_child;
-			//for each child
-			//calculate lowest bound assuming you went to this child
-			//keep track of which child has lowest bound
+
+			//Find the child with the lowest bound
 			for (int i = 0; i < children.size(); i++)
 			{
 				path.push_back(children[i]);
@@ -246,6 +248,10 @@ int main()
 				path.pop_back();
 			}
 
+
+			//Add the lowest bound child to the path and set it as traversed
+			path.push_back(lowest_child);
+
 			for (int i = 0; i < critical_nodes.size(); i++)
 			{
 				if (lowest_child == critical_nodes[i].node)
@@ -254,11 +260,10 @@ int main()
 					break;
 				}
 			}
-			//assign lowest bound child to new current node
-			path.push_back(lowest_child);
 		}
 	}
 
+	//Display path
 	for (int i = 0; i < path.size(); i++)
 		cout << path[i] << " ";
 }
