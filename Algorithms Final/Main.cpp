@@ -155,10 +155,12 @@ int main()
 	Critical_nodes is a vector of nodes that we must go to
 	-We make it type 'visiting' so that we can keep track if we have gone there yet
 	*/
+	int num_critical_nodes;
+	cin >> num_critical_nodes;
 	vector<visiting> critical_nodes;
 	
 	//INPUT: Get all critical nodes
-	for (int i = 0; i < num_nodes; i++)
+	for (int i = 0; i < num_critical_nodes; i++)
 	{
 		visiting node;
 		cin >> node.node;
@@ -173,9 +175,11 @@ int main()
 	Path is a list of the nodes we have visited and what order we have visited them
 	-We add the first critical node because that is our starting/ending location
 	*/
-	vector<int> path = {critical_nodes[0].node};
+	vector<int> path = { critical_nodes[0].node, critical_nodes[1].node };
+	critical_nodes[0].pathed = true;
+	critical_nodes[1].pathed = true;
 	while (true)
-	{
+	{/*
 		if (first_round == true)
 		{
 			first_round = false;
@@ -219,7 +223,7 @@ int main()
 				}
 			}
 		}
-		else
+		else*/
 		{
 
 			//Get the children of the last traversed node
