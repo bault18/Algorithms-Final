@@ -2,6 +2,8 @@
 #include <vector>
 #include <algorithm>
 #include <queue>
+#include <functional>
+#include <utility>
 
 using namespace std;
 
@@ -16,6 +18,33 @@ struct visiting
 	int node;
 	bool pathed;
 };
+
+class sorting
+{
+public:
+	sorting()
+	{
+		crit_nodes = vector<visiting>();
+		curr_path = vector<int>();
+	}
+	sorting(vector<visiting> crit, vector<int> pth, int prior)
+	{
+		crit_nodes = crit;
+		curr_path = pth;
+		priority = prior;
+	}
+
+	vector<visiting> crit_nodes;
+	vector<int> curr_path;
+	int priority;
+
+
+};
+
+bool operator<(const sorting& a, const sorting& b)
+{
+	return a.priority > b.priority;
+}
 
 
 /*
@@ -150,7 +179,7 @@ int main()
 			}
 		}
 	}
-	
+
 	/*
 	Critical_nodes is a vector of nodes that we must go to
 	-We make it type 'visiting' so that we can keep track if we have gone there yet
@@ -169,7 +198,7 @@ int main()
 	}
 
 	//Run approximate Branch and Bound for Travelling Salesman
-	bool first_round = true;
+
 
 	/*
 	Path is a list of the nodes we have visited and what order we have visited them
@@ -178,96 +207,68 @@ int main()
 	vector<int> path = { critical_nodes[0].node, critical_nodes[1].node };
 	critical_nodes[0].pathed = true;
 	critical_nodes[1].pathed = true;
+
+	priority_queue<sorting> expand_next;
+	expand_next.push(sorting(critical_nodes, path, 0));
+
+	double best_dist = DBL_MAX;
+	sorting best = sorting();
 	while (true)
-	{/*
-		if (first_round == true)
+	{
+		if (expand_next.size() == 0)
 		{
-			first_round = false;
+			break;
+		}
+		sorting curr = expand_next.top();
+		expand_next.pop();
+		//Get the children of the last traversed node
+		vector<int> children = get_children(total_map, curr.crit_nodes, curr.curr_path[curr.curr_path.size() - 1]);
 
-			//Calculate the lowest bound of entire problem
-			double low = get_lowest_bound_start(total_map, critical_nodes);
-			low /= 2;
-			int lowest = int(low + 0.5);
+		//End Condition
+		if (children.size() == 0)
+		{
+			double dist = 0;
 
-			//Must be done after the lowest bound function is called or it would ignore the first node
-			critical_nodes[0].pathed = true;
-
-			//Get children first node
-			vector<int> children = get_children(total_map, critical_nodes, critical_nodes[0].node);
-
-			int lowest_child_bound = numeric_limits<int>::max();
-			int lowest_child;
-			
-			//Find the child with the lowest bound
-			for (int i = 0; i < children.size(); i++)
+			for (int i = 0; i < curr.curr_path.size() - 1; i++)
 			{
-				path.push_back(children[i]);
-				int bound = get_lowest_bound(total_map, critical_nodes, path);
-				if (lowest_child_bound > bound)
-				{
-					lowest_child_bound = bound;
-					lowest_child = children[i];
-				}
-				path.pop_back();
+				dist += total_map[curr.curr_path[i] - 1][curr.curr_path[i + 1] - 1];
+				//cout << curr.curr_path[i] << " ";
 			}
+			//cout << "\nDist: " << dist << endl;
 
-			//Add the lowest bound child to the path and set it as traversed
-			path.push_back(lowest_child);
-
-			for (int i = 0; i < critical_nodes.size(); i++)
+			if (dist < best_dist)
 			{
-				if (lowest_child == critical_nodes[i].node)
+				best_dist = dist;
+				best.curr_path = curr.curr_path;
+				best.crit_nodes = curr.crit_nodes;
+			}
+			continue;
+		}
+
+		//Add children to the priority queue
+		for (int i = 0; i < children.size(); i++)
+		{
+			curr.curr_path.push_back(children[i]);
+			int j = 0;
+			for (; j < critical_nodes.size(); j++)
+			{
+				if (children[i] == curr.crit_nodes[j].node)
 				{
-					critical_nodes[i].pathed = true;
+					curr.crit_nodes[j].pathed = true;
 					break;
 				}
 			}
-		}
-		else*/
-		{
+			expand_next.push(sorting(curr.crit_nodes, curr.curr_path, get_lowest_bound(total_map, curr.crit_nodes, curr.curr_path)));
 
-			//Get the children of the last traversed node
-			vector<int> children = get_children(total_map, critical_nodes, path[path.size() - 1]);
-
-			//End Condition
-			if (children.size() == 0)
-			{
-				path.push_back(critical_nodes[0].node);
-				break;
-			}
-
-			int lowest_child_bound = numeric_limits<int>::max();
-			int lowest_child;
-
-			//Find the child with the lowest bound
-			for (int i = 0; i < children.size(); i++)
-			{
-				path.push_back(children[i]);
-				int bound = get_lowest_bound(total_map, critical_nodes, path);
-				if (lowest_child_bound > bound)
-				{
-					lowest_child_bound = bound;
-					lowest_child = children[i];
-				}
-				path.pop_back();
-			}
-
-
-			//Add the lowest bound child to the path and set it as traversed
-			path.push_back(lowest_child);
-
-			for (int i = 0; i < critical_nodes.size(); i++)
-			{
-				if (lowest_child == critical_nodes[i].node)
-				{
-					critical_nodes[i].pathed = true;
-					break;
-				}
-			}
-		}
+			curr.crit_nodes[j].pathed = false;
+			curr.curr_path.pop_back();
+		}		
 	}
 
 	//Display path
-	for (int i = 0; i < path.size(); i++)
-		cout << path[i] << " ";
+	for (int i = 0; i < best.curr_path.size(); i++)
+	{
+		cout << best.curr_path[i] << " ";
+	}
+	cout << endl << "Best Dist: " << best_dist << endl;
 }
