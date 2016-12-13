@@ -109,6 +109,18 @@ int get_lowest_bound(vector<vector<double>> total_map, vector<visiting> critical
 		lowest_bound += min;
 	}
 
+
+	
+	for (int i = 0; i < critical_nodes.size(); i++)
+	{
+		if (path[path.size() - 1] == critical_nodes[i].node)
+		{
+			critical_nodes[i].pathed = false;
+			break;
+		}
+	}
+
+
 	//get lowest bound of points not in the map
 	double rest_of_bound = get_lowest_bound_start(total_map, critical_nodes);
 	
@@ -126,6 +138,16 @@ vector<int> get_children(vector<vector<double>> total_map, vector<visiting> crit
 	}
 	
 	return children;
+}
+
+bool all_true(vector<visiting> critical_nodes)
+{
+	for (int i = 0; i < critical_nodes.size(); i++)
+	{
+		if (critical_nodes[i].pathed == false && critical_nodes[i].node != 1)
+			return false;
+	}
+	return true;
 }
 
 int main()
@@ -185,9 +207,9 @@ int main()
 	-We make it type 'visiting' so that we can keep track if we have gone there yet
 	*/
 	int num_critical_nodes;
+	cout << "Get Num Critical Nodes: " << endl;
 	cin >> num_critical_nodes;
 	vector<visiting> critical_nodes;
-	
 	//INPUT: Get all critical nodes
 	for (int i = 0; i < num_critical_nodes; i++)
 	{
@@ -204,23 +226,26 @@ int main()
 	Path is a list of the nodes we have visited and what order we have visited them
 	-We add the first critical node because that is our starting/ending location
 	*/
-	vector<int> path = { critical_nodes[0].node, critical_nodes[1].node };
+	vector<int> path = { critical_nodes[0].node, critical_nodes[1].node};
 	critical_nodes[0].pathed = true;
 	critical_nodes[1].pathed = true;
 
 	priority_queue<sorting> expand_next;
 	expand_next.push(sorting(critical_nodes, path, 0));
-
-	double best_dist = DBL_MAX;
-	sorting best = sorting();
+	int pass = 0;
 	while (true)
 	{
+		pass++;
+		cout << "Pass: " << pass << endl;
+
+		//This should never happen but just in case
 		if (expand_next.size() == 0)
-		{
 			break;
-		}
+
+
 		sorting curr = expand_next.top();
 		expand_next.pop();
+		
 		//Get the children of the last traversed node
 		vector<int> children = get_children(total_map, curr.crit_nodes, curr.curr_path[curr.curr_path.size() - 1]);
 
@@ -228,26 +253,56 @@ int main()
 		if (children.size() == 0)
 		{
 			double dist = 0;
+			curr.curr_path.push_back(curr.crit_nodes[0].node);
 
 			for (int i = 0; i < curr.curr_path.size() - 1; i++)
 			{
 				dist += total_map[curr.curr_path[i] - 1][curr.curr_path[i + 1] - 1];
-				//cout << curr.curr_path[i] << " ";
+				cout << curr.curr_path[i] << " ";
 			}
-			//cout << "\nDist: " << dist << endl;
+			cout << curr.curr_path[curr.curr_path.size() - 1];
+			cout << "\nDist: " << dist << endl;
+			break;
+		}
 
-			if (dist < best_dist)
+
+		
+		if (curr.curr_path.back() == 24)
+		{
+			curr.curr_path.push_back(25);
+			for (int i = 0; i < curr.crit_nodes.size(); i++)
 			{
-				best_dist = dist;
-				best.curr_path = curr.curr_path;
-				best.crit_nodes = curr.crit_nodes;
+				if (curr.crit_nodes[i].node == 25)
+				{
+					curr.crit_nodes[i].pathed = true;
+					break;
+				}
 			}
+			expand_next.push(sorting(curr.crit_nodes, curr.curr_path, get_lowest_bound(total_map, curr.crit_nodes, curr.curr_path)));
 			continue;
 		}
 
-		//Add children to the priority queue
+		if (curr.curr_path.back() == 21)
+		{
+			curr.curr_path.push_back(23);
+			for (int i = 0; i < curr.crit_nodes.size(); i++)
+			{
+				if (curr.crit_nodes[i].node == 23)
+				{
+					curr.crit_nodes[i].pathed = true;
+					break;
+				}
+			}
+			expand_next.push(sorting(curr.crit_nodes, curr.curr_path, get_lowest_bound(total_map, curr.crit_nodes, curr.curr_path)));
+			continue;
+		}
+
 		for (int i = 0; i < children.size(); i++)
 		{
+			//node 1 must be last node visited
+			if (!all_true(curr.crit_nodes) && children[i] == 1)
+				continue;
+
 			curr.curr_path.push_back(children[i]);
 			int j = 0;
 			for (; j < critical_nodes.size(); j++)
@@ -264,11 +319,4 @@ int main()
 			curr.curr_path.pop_back();
 		}		
 	}
-
-	//Display path
-	for (int i = 0; i < best.curr_path.size(); i++)
-	{
-		cout << best.curr_path[i] << " ";
-	}
-	cout << endl << "Best Dist: " << best_dist << endl;
 }
