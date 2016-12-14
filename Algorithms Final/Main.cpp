@@ -27,16 +27,18 @@ public:
 		crit_nodes = vector<visiting>();
 		curr_path = vector<int>();
 	}
-	sorting(vector<visiting> crit, vector<int> pth, int prior)
+	sorting(vector<visiting> crit, vector<int> pth, int prior, double p)
 	{
 		crit_nodes = crit;
 		curr_path = pth;
 		priority = prior;
+		path_len = p;
 	}
 
 	vector<visiting> crit_nodes;
 	vector<int> curr_path;
 	int priority;
+	double path_len;
 
 
 };
@@ -55,76 +57,37 @@ INPUT:
 OUTPUT:
 -A partial lower bound from the given problem
 */
-double get_lowest_bound_start(vector<vector<double>> total_map, vector<visiting> critical_nodes)
+int get_lb(vector<vector<double>> total_map, vector<visiting> critical_nodes, int path_len)
 {
 	double lowest_bound = 0;
 	
 	//Find the two shortest paths leaving each critical node that has not been pathed
 	for (int i = 0; i < critical_nodes.size(); i++)
 	{
+		
 		//Ignore pathed critical nodes
 		if (critical_nodes[i].pathed == true)
 			continue;
 
-		vector<double> paths;
+		double min1 = DBL_MAX;
+		double min2 = DBL_MAX;
 		for (int j = 0; j < critical_nodes.size(); j++)
 		{
-			//If possible to get to the critical node && the node is not going to itself
-			if (total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1] != DBL_MAX && j != i)
-				paths.push_back(total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1]);
+			if (j != i)
+			{
+				if (total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1] < min1)
+				{
+					min2 = min1;
+					min1 = total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1];
+				}
+				else if (total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1] < min2)
+					min2 = total_map[critical_nodes[i].node - 1][critical_nodes[j].node - 1];
+			}
 		}
-
-		sort(paths.begin(), paths.begin() + paths.size());
-		lowest_bound += paths[0] + paths[1];
+		lowest_bound += min1 + min2;
 	}
 
-	return lowest_bound;
-}
-
-/*
-INPUT:
--total_map = Matrix that Floyd's was ran on
--critical_nodes = list of nodes that must be vistied and have already been visited
--path = the order that the nodes have been traversed
-
-OUTPUT:
--An exact lower bound for the entire problem given that you have followed the path
-*/
-int get_lowest_bound(vector<vector<double>> total_map, vector<visiting> critical_nodes, vector<int> path)
-{
-
-	//Calculate the lowest bound of the path
-	double lowest_bound = 0;
-	for (int i = 0; i < path.size() - 1; i++)
-	{
-		lowest_bound += total_map[path[i] - 1][path[i + 1] - 1];
-		total_map[path[i] - 1][path[i + 1] - 1] = DBL_MAX;
-
-		double min = DBL_MAX;
-		for (int j = 0; j < critical_nodes.size(); j++)
-		{
-			if (total_map[path[i] - 1][critical_nodes[j].node - 1] != DBL_MAX && j != i && total_map[path[i] - 1][critical_nodes[j].node - 1] < min)
-				min = total_map[path[i] - 1][critical_nodes[j].node - 1];				
-		}
-		lowest_bound += min;
-	}
-
-
-	
-	for (int i = 0; i < critical_nodes.size(); i++)
-	{
-		if (path[path.size() - 1] == critical_nodes[i].node)
-		{
-			critical_nodes[i].pathed = false;
-			break;
-		}
-	}
-
-
-	//get lowest bound of points not in the map
-	double rest_of_bound = get_lowest_bound_start(total_map, critical_nodes);
-	
-	return int((lowest_bound + rest_of_bound) / 2);
+	return path_len + int((lowest_bound + 0.5) / 2) ;
 }
 
 //OUTPUT: Finds all children of the current node that are critical nodes
@@ -133,21 +96,11 @@ vector<int> get_children(vector<vector<double>> total_map, vector<visiting> crit
 	vector<int> children;
 	for (int i = 0; i < critical_nodes.size(); i++)
 	{
-		if (total_map[current_node - 1][critical_nodes[i].node - 1] != DBL_MAX && current_node != critical_nodes[i].node && critical_nodes[i].pathed == false)
+		if (current_node != critical_nodes[i].node && critical_nodes[i].pathed == false)
 			children.push_back(critical_nodes[i].node);
 	}
 	
 	return children;
-}
-
-bool all_true(vector<visiting> critical_nodes)
-{
-	for (int i = 0; i < critical_nodes.size(); i++)
-	{
-		if (critical_nodes[i].pathed == false && critical_nodes[i].node != 1)
-			return false;
-	}
-	return true;
 }
 
 int main()
@@ -209,6 +162,7 @@ int main()
 	int num_critical_nodes;
 	cout << "Get Num Critical Nodes: " << endl;
 	cin >> num_critical_nodes;
+
 	vector<visiting> critical_nodes;
 	//INPUT: Get all critical nodes
 	for (int i = 0; i < num_critical_nodes; i++)
@@ -219,29 +173,16 @@ int main()
 		critical_nodes.push_back(node);
 	}
 
-	//Run approximate Branch and Bound for Travelling Salesman
 
-
-	/*
-	Path is a list of the nodes we have visited and what order we have visited them
-	-We add the first critical node because that is our starting/ending location
-	*/
-	vector<int> path = { critical_nodes[0].node, critical_nodes[1].node};
+	vector<int> path = {critical_nodes[0].node};
 	critical_nodes[0].pathed = true;
-	critical_nodes[1].pathed = true;
 
 	priority_queue<sorting> expand_next;
-	expand_next.push(sorting(critical_nodes, path, 0));
-	int pass = 0;
+	expand_next.push(sorting(critical_nodes, path, 0, 0));
+
+	//Run approximate Branch and Bound for Travelling Salesman
 	while (true)
 	{
-		pass++;
-		cout << "Pass: " << pass << endl;
-
-		//This should never happen but just in case
-		if (expand_next.size() == 0)
-			break;
-
 
 		sorting curr = expand_next.top();
 		expand_next.pop();
@@ -262,61 +203,30 @@ int main()
 			}
 			cout << curr.curr_path[curr.curr_path.size() - 1];
 			cout << "\nDist: " << dist << endl;
-			break;
-		}
-
-
 		
-		if (curr.curr_path.back() == 24)
-		{
-			curr.curr_path.push_back(25);
-			for (int i = 0; i < curr.crit_nodes.size(); i++)
-			{
-				if (curr.crit_nodes[i].node == 25)
-				{
-					curr.crit_nodes[i].pathed = true;
-					break;
-				}
-			}
-			expand_next.push(sorting(curr.crit_nodes, curr.curr_path, get_lowest_bound(total_map, curr.crit_nodes, curr.curr_path)));
-			continue;
-		}
-
-		if (curr.curr_path.back() == 21)
-		{
-			curr.curr_path.push_back(23);
-			for (int i = 0; i < curr.crit_nodes.size(); i++)
-			{
-				if (curr.crit_nodes[i].node == 23)
-				{
-					curr.crit_nodes[i].pathed = true;
-					break;
-				}
-			}
-			expand_next.push(sorting(curr.crit_nodes, curr.curr_path, get_lowest_bound(total_map, curr.crit_nodes, curr.curr_path)));
-			continue;
+			break;
 		}
 
 		for (int i = 0; i < children.size(); i++)
 		{
-			//node 1 must be last node visited
-			if (!all_true(curr.crit_nodes) && children[i] == 1)
-				continue;
+			vector<int> curr_path = curr.curr_path;
+			vector<visiting> curr_crit_nodes = curr.crit_nodes;
 
-			curr.curr_path.push_back(children[i]);
-			int j = 0;
-			for (; j < critical_nodes.size(); j++)
+			curr_path.push_back(children[i]);
+
+			int bound = get_lb(total_map, curr_crit_nodes, curr.path_len);
+			int new_path = curr.path_len + int(total_map[curr_path.back() - 1][children[i] - 1]);
+
+			for (int j = 0; j < critical_nodes.size(); j++)
 			{
 				if (children[i] == curr.crit_nodes[j].node)
 				{
-					curr.crit_nodes[j].pathed = true;
+					curr_crit_nodes[j].pathed = true;
 					break;
 				}
 			}
-			expand_next.push(sorting(curr.crit_nodes, curr.curr_path, get_lowest_bound(total_map, curr.crit_nodes, curr.curr_path)));
 
-			curr.crit_nodes[j].pathed = false;
-			curr.curr_path.pop_back();
+			expand_next.push(sorting(curr_crit_nodes, curr_path, bound, new_path));
 		}		
 	}
 }
