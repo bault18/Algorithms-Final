@@ -2,8 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <queue>
-#include <functional>
-#include <utility>
+#include <ctime>
 
 using namespace std;
 
@@ -53,9 +52,9 @@ bool operator<(const sorting& a, const sorting& b)
 INPUT:
 -total_map = Matrix that Floyd's was ran on
 -critical_nodes = list of nodes that must be vistied and have already been visited
+-path_len = Length of path up until the current node
 
-OUTPUT:
--A partial lower bound from the given problem
+OUTPUT: Lower bound for this instance of the problem
 */
 int get_lb(vector<vector<double>> total_map, vector<visiting> critical_nodes, int path_len)
 {
@@ -110,11 +109,7 @@ int main()
 
 	vector<vector<double>> total_map;
 
-	/* 
-	Creates the nxn matrix
-	-main diagonal initialized to 0
-	-all other spots initialized to DBl_MAX
-	*/
+	//Create matrix to hold path lengths
 	for (int i = 0; i < num_nodes; i++)
 	{
 		vector <double> temp;
@@ -160,11 +155,10 @@ int main()
 	-We make it type 'visiting' so that we can keep track if we have gone there yet
 	*/
 	int num_critical_nodes;
-	cout << "Get Num Critical Nodes: " << endl;
+	cout << "Get Num Critical Nodes: " ;
 	cin >> num_critical_nodes;
 
 	vector<visiting> critical_nodes;
-	//INPUT: Get all critical nodes
 	for (int i = 0; i < num_critical_nodes; i++)
 	{
 		visiting node;
@@ -173,7 +167,7 @@ int main()
 		critical_nodes.push_back(node);
 	}
 
-
+	//put in starting location
 	vector<int> path = {critical_nodes[0].node};
 	critical_nodes[0].pathed = true;
 
@@ -181,18 +175,22 @@ int main()
 	expand_next.push(sorting(critical_nodes, path, 0, 0));
 
 	//Run approximate Branch and Bound for Travelling Salesman
+	std::clock_t start = std::clock();
+	int passes = 0;
 	while (true)
 	{
-
+		passes++;
 		sorting curr = expand_next.top();
 		expand_next.pop();
 		
-		//Get the children of the last traversed node
+		
 		vector<int> children = get_children(total_map, curr.crit_nodes, curr.curr_path[curr.curr_path.size() - 1]);
 
 		//End Condition
 		if (children.size() == 0)
 		{
+			system("CLS");
+			cout << "Passes: " << passes << " ,Time: " << (std::clock() - start) / (double)CLOCKS_PER_SEC << " seconds \nPath: ";
 			double dist = 0;
 			curr.curr_path.push_back(curr.crit_nodes[0].node);
 
@@ -202,7 +200,7 @@ int main()
 				cout << curr.curr_path[i] << " ";
 			}
 			cout << curr.curr_path[curr.curr_path.size() - 1];
-			cout << "\nDist: " << dist << endl;
+			cout << "\nDist: " << dist << " meters" << endl;
 		
 			break;
 		}
